@@ -1,0 +1,72 @@
+services:
+
+  # Traefik
+  # ---
+  # Traefik is a modern HTTP reverse proxy and load balancer that makes deploying microservices easy.
+  # It supports several backends (Docker, Swarm, Kubernetes, Marathon, Consul, Etcd, Rancher, Amazon ECS, and a lot more) to manage its configuration automatically and dynamically.
+  # https://traefik.io/
+  traefik:
+    container_name: "traefik"
+    image: "traefik:v3.2"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # The Web UI (enabled by --api.insecure=true)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik-ssl-certs:/ssl-certs
+      - ./traefik:/etc/traefik
+    networks:
+      - traefik_network
+    restart: always
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+    environment:
+      - TZ=Africa/Dar_es_Salaam # Set the timezone
+
+  # Portainer
+  # ---
+  # Portainer is a lightweight management UI which allows you to easily manage your Docker host or Swarm cluster.
+  # https://www.portainer.io/
+  portainer:
+    container_name: portainer
+    image: "docker.io/portainer/portainer-ce:2.21.4"
+    expose:
+      - 9000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    networks:
+      - traefik_network
+    restart: always
+    labels:
+    - "com.centurylinklabs.watchtower.enable=true"
+    - "traefik.enable=true"
+    - "traefik.http.routers.portainer.rule=Host(`{{ PORTAINER_DOMAIN }}`)"
+    - "traefik.http.routers.portainer.entrypoints=websecure"
+    - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+    - "traefik.http.routers.portainer.tls.certresolver=production"
+
+  # Watchtower
+  # ---
+  # Watchtower is a process for automating Docker container base image updates.
+  # https://containrrr.dev/watchtower/
+  watchtower:
+    container_name: "watchtower"
+    image: "docker.io/containrrr/watchtower"
+    volumes:
+       - /var/run/docker.sock:/var/run/docker.sock
+       - /root/.docker/config.json:/config.json:ro
+    restart: always
+    environment:
+      TZ: Africa/Dar_es_Salaam
+      WATCHTOWER_LIFECYCLE_HOOKS: "1" # Enable pre/post-update scripts
+    command: --debug --cleanup --interval 30
+
+networks:
+  traefik_network:
+    external: true
+
+volumes:
+  portainer-data:
+  traefik-ssl-certs:
