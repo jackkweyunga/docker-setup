@@ -28,7 +28,7 @@ jobs:
           chmod +x src/*.sh
 
       - name: Build package
-        run: bash build ${{ env.VERSION }}
+        run: bash build.sh ${{ env.VERSION }}
 
       - name: Generate changelog
         run: |
