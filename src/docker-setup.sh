@@ -9,7 +9,7 @@ if [ -z "$BASH_VERSION" ]; then
 fi
 
 # Script version
-VERSION="1.1.0"
+VERSION="1.1.12"
 
 # Get usage information and argument parsing
 show_usage() {
