@@ -6,8 +6,38 @@ set -euo pipefail
 # Script version
 VERSION="1.0.0"
 
-# Configuration directories
-CONFIG_DIR="${CONFIG_DIR:-$(pwd)}"
+# Function to determine the appropriate configuration directory
+get_config_dir() {
+    # First, check if CONFIG_DIR is explicitly set in the environment
+    if [[ -n "${CONFIG_DIR:-}" ]]; then
+        echo "Using explicitly set configuration directory: $CONFIG_DIR" >&2
+        echo "$CONFIG_DIR"
+        return
+    fi
+
+    # System-wide installation
+    # In the mean time
+    echo "Using system-wide configuration directory: /etc/docker-setup" >&2
+    echo "/etc/docker-setup"
+    return
+
+    # TODO: Decide whether the approach below is good
+    # Check if running as root or with sudo
+    # if [[ $EUID -eq 0 ]]; then
+    #     # System-wide installation
+    #     echo "Using system-wide configuration directory: /etc/docker-setup" >&2
+    #     echo "/etc/docker-setup"
+    #     return
+    # fi
+
+    # If user is running the script normally, use local configuration
+    # local user_config_dir="$HOME/.docker-setup"
+    # echo "Using user-specific configuration directory: $user_config_dir" >&2
+    # echo "$user_config_dir"
+}
+
+# Set the configuration directory based on the determination
+CONFIG_DIR=$(get_config_dir)
 TEMPLATE_DIR="/usr/local/share/docker-setup/templates"
 
 # Colors for output
