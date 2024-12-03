@@ -209,10 +209,31 @@ main() {
         log "INFO" "Creating traefik_network"
         docker network create traefik_network
     fi
+
+    run_docker_compose() {
+        # Store the current directory
+        local original_dir=$(pwd)
+        
+        # Change to the configuration directory
+        cd "${CONFIG_DIR}"
+        
+        log "INFO" "Running Docker Compose from ${CONFIG_DIR}"
+        
+        # Run docker compose with proper error handling
+        if docker compose up -d; then
+            local status=$?
+            cd "${original_dir}"  # Return to original directory
+            return $status
+        else
+            local status=$?
+            cd "${original_dir}"  # Return to original directory
+            return $status
+        fi
+    }
     
     # Start services
     log "INFO" "Starting Docker containers"
-    if docker compose up -d; then
+    if run_docker_compose; then
         log "INFO" "Setup completed successfully!"
         log "INFO" "Access Portainer at: https://$PORTAINER_DOMAIN"
         log "INFO" "Please allow a few minutes for SSL certificates to be generated"
