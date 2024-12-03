@@ -3,11 +3,11 @@
 Automated infrastructure setup tool for Docker with Traefik, Portainer, and Watchtower.
 
 ## Features
-[x] Install Docker if not there
-[x] Setup and install Traefik, Portainer and Watchtower
-[ ] Update portainer domain command ( --portainer-domain p.example.com )
-[ ] Update traefik email command ( --email xxx@xx.xx )
-[ ] Update to new version command ( --update )
+- [x] Install Docker if not there
+- [x] Setup and install Traefik, Portainer and Watchtower
+- [x] Update portainer domain command ( --portainer-domain p.example.com )
+- [x] Update traefik email command ( --email xxx@xx.xx )
+- [x] Update to new version command ( --update )
 
 ## Quick Install
 
@@ -20,6 +20,9 @@ curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/inst
 ```bash
 # Basic setup
 docker-setup
+
+# Help
+docker-setup --help
 
 # With custom domain
 docker-setup --portainer-domain example.com
