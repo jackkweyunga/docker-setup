@@ -22,7 +22,7 @@ sed -i "s|VERSION=\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"|VERSION=\"${VERSION}
     "src/docker-setup.sh"
 
 # Verify the version was updated correctly
-if ! grep "VERSION=\"${VERSION}\"" "src/docker-setup" > /dev/null; then
+if ! grep "VERSION=\"${VERSION}\"" "src/docker-setup.sh" > /dev/null; then
     echo "Error: Failed to update version in script"
     exit 1
 fi
