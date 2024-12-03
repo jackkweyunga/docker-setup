@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Script version
-VERSION="1.0.69"
+VERSION="1.07"
 
 # Function to determine the appropriate configuration directory
 get_config_dir() {
