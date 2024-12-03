@@ -2,23 +2,18 @@
 
 Automated infrastructure setup tool for Docker with Traefik, Portainer, and Watchtower.
 
+## Features
+[x] Install Docker if not there
+[x] Setup and install Traefik, Portainer and Watchtower
+[ ] Update portainer domain command ( --portainer-domain p.example.com )
+[ ] Update traefik email command ( --email xxx@xx.xx )
+[ ] Update to new version command ( --update )
+
 ## Quick Install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/install.sh | bash
 ```
-
-## Manual Installation
-
-1. Download the latest release from our [releases page](https://github.com/jackkweyunga/docker-setup/releases)
-2. Extract the package:
-   ```bash
-   tar -xzf docker-setup-1.0.0.tar.gz
-   ```
-3. Install:
-   ```bash
-   sudo make install
-   ```
 
 ## Usage
 
@@ -27,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/inst
 docker-setup
 
 # With custom domain
-docker-setup --domain example.com
+docker-setup --portainer-domain example.com
 
 # With custom email
 docker-setup --email admin@example.com
@@ -36,8 +31,7 @@ docker-setup --email admin@example.com
 ## Configuration
 
 Configuration files are stored in:
-- `/etc/docker-setup/config/`
-- `~/.docker-setup/`
+- `/etc/docker-setup/`
 
 ## Updating
 

@@ -1,10 +1,92 @@
 #!/bin/bash
 
-# Enable strict error handling
-set -euo pipefail
+#!/usr/bin/env bash
+
+# First, ensure we're running in bash
+if [ -z "$BASH_VERSION" ]; then
+    echo "This script requires bash to run"
+    exit 1
+fi
 
 # Script version
 VERSION="1.0.69"
+
+# Get usage information and argument parsing
+show_usage() {
+    cat << EOF
+Usage: docker-setup [OPTIONS]
+
+A tool for managing Docker infrastructure setup
+
+Options:
+    --portainer-domain DOMAIN   Set the Portainer domain (e.g., portainer.example.com)
+    --email EMAIL               Set the email for SSL certificates
+    --update                    Update to the latest version
+    -h, --help                  Show this help message
+
+Examples:
+    docker-setup --portainer-domain portainer.example.com --email admin@example.com
+    docker-setup --update
+EOF
+}
+
+# Function to handle updating the tool to a new version
+update_tool() {
+    log "INFO" "Checking for updates..."
+    
+    # Get the latest version from the repository
+    local latest_version=$(curl -s https://api.github.com/repos/jackkweyunga/docker-setup/releases/latest | grep -Po '"tag_name": "v\K[^"]*')
+    
+    if [[ -z "$latest_version" ]]; then
+        log "ERROR" "Failed to check for updates"
+        exit 1
+    fi
+    
+    if [[ "$VERSION" == "$latest_version" ]]; then
+        log "INFO" "You are already running the latest version (${VERSION})"
+        exit 0
+    fi
+    
+    log "INFO" "New version available: ${latest_version}"
+    log "INFO" "Current version: ${VERSION}"
+    
+    read -p "Would you like to update? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # Download and run the installation script
+        curl -fsSL https://raw.githubusercontent.com/yourusername/docker-setup/main/install.sh | bash
+        log "INFO" "Update completed successfully!"
+        exit 0
+    fi
+}
+
+# Function to update configuration values
+update_config() {
+    local key=$1
+    local value=$2
+    local env_file="${CONFIG_DIR}/.env"
+    
+    # Create .env file if it doesn't exist
+    touch "$env_file"
+    
+    # Update the value in .env file
+    if grep -q "^${key}=" "$env_file"; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$env_file"
+    else
+        echo "${key}=${value}" >> "$env_file"
+    fi
+    
+    log "INFO" "Updated ${key} to: ${value}"
+    
+    # If updating email, also update traefik configuration
+    if [[ "$key" == "EMAIL" ]]; then
+        if [[ -f "${CONFIG_DIR}/traefik/traefik.yml" ]]; then
+            sed -i "s|email: .*|email: \"${value}\"|" "${CONFIG_DIR}/traefik/traefik.yml"
+            log "INFO" "Updated email in Traefik configuration"
+        fi
+    fi
+}
+
 
 # Function to determine the appropriate configuration directory
 get_config_dir() {
@@ -243,5 +325,41 @@ main() {
     fi
 }
 
-# Run main function
-main "$@"
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --portainer-domain)
+            if [[ -n "${2:-}" ]]; then
+                update_config "PORTAINER_DOMAIN" "$2"
+                shift 2
+            else
+                log "ERROR" "Missing domain value for --portainer-domain"
+                exit 1
+            fi
+            ;;
+        --email)
+            if [[ -n "${2:-}" ]]; then
+                if validate_email "$2"; then
+                    update_config "EMAIL" "$2"
+                    shift 2
+                else
+                    log "ERROR" "Invalid email format"
+                    exit 1
+                fi
+            else
+                log "ERROR" "Missing email value for --email"
+                exit 1
+            fi
+            ;;
+        --update)
+            update_tool
+            ;;
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        *)
+            main "$@"
+            ;;
+    esac
+done
