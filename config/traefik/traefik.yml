@@ -29,7 +29,7 @@ entryPoints:
 certificatesResolvers:
   staging:
     acme:
-      email: your-email@domain.com
+      email: akauntiyamchezo@gmail.com
       storage: /etc/traefik/certs/acme.json
       caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
       tlsChallenge: {}
@@ -38,7 +38,7 @@ certificatesResolvers:
 
   production:
     acme:
-      email: your-email@domain.com
+      email: akauntiyamchezo@gmail.com
       storage: /etc/traefik/certs/acme.json
       caServer: "https://acme-v02.api.letsencrypt.org/directory"
       tlsChallenge: {}

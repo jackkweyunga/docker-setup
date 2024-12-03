@@ -1,0 +1,123 @@
+name: Release Docker Setup Tool
+
+# This workflow runs when you push a new tag
+on:
+  push:
+    tags:
+      - 'v*' # This matches tag patterns like v1.0.0, v2.1.3, etc.
+
+# We'll need permissions to create releases
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # We need full history for changelog generation
+      
+      # Install build dependencies
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shc make
+      
+      # Set up version variable from the tag
+      - name: Set version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          echo "Building version ${GITHUB_REF#refs/tags/v}"
+      
+      # Build our binary and package
+      - name: Build package
+        run: |
+          
+          # Build the binary
+          make
+          
+          # Create the release package
+          tar -czf docker-setup-${{ env.VERSION }}.tar.gz bin/* config/*
+          
+          # Generate checksum
+          sha256sum docker-setup-${{ env.VERSION }}.tar.gz > docker-setup-${{ env.VERSION }}.sha256
+          
+          # Create Debian package
+          mkdir -p docker-setup-${{ env.VERSION }}/DEBIAN
+          cat > docker-setup-${{ env.VERSION }}/DEBIAN/control << EOF
+          Package: docker-setup
+          Version: ${{ env.VERSION }}
+          Section: utils
+          Priority: optional
+          Architecture: all
+          Maintainer: ${{ github.repository_owner }}
+          Description: Docker infrastructure setup tool
+           Automatically sets up Docker infrastructure with Traefik,
+           Portainer, and Watchtower.
+          EOF
+          
+          dpkg-deb --build docker-setup-${{ env.VERSION }}
+      
+      # Generate changelog from commits since last tag
+      - name: Generate changelog
+        run: |
+          echo "## What's Changed" > changelog.md
+          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"* %s" >> changelog.md
+          
+      # Create GitHub release
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            docker-setup-${{ env.VERSION }}.tar.gz
+            docker-setup-${{ env.VERSION }}.sha256
+            docker-setup-${{ env.VERSION }}.deb
+          body_path: changelog.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Update installation script with new version
+      - name: Update installation script
+        run: |
+          cat > install.sh << 'EOF'
+          #!/bin/bash
+          
+          # Detect OS and architecture
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ARCH=$(uname -m)
+          
+          # Set version
+          VERSION="${{ env.VERSION }}"
+          REPO="${{ github.repository }}"
+          
+          echo "Downloading docker-setup ${VERSION}..."
+          DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/docker-setup-${VERSION}.tar.gz"
+          
+          # Download package
+          curl -L "${DOWNLOAD_URL}" -o docker-setup.tar.gz
+          
+          # Verify checksum
+          curl -L "${DOWNLOAD_URL}.sha256" -o docker-setup.sha256
+          sha256sum -c docker-setup.sha256
+          
+          # Install
+          sudo tar -C /usr/local -xzf docker-setup.tar.gz
+          
+          echo "Installation complete! Run 'docker-setup' to get started."
+          EOF
+          
+          chmod +x install.sh
+          
+      # Commit and push updated install script
+      - name: Commit install script
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add install.sh
+          git commit -m "Update install script for version ${{ env.VERSION }}" || echo "No changes to commit"
+          git push origin HEAD:main || echo "No changes to push"
