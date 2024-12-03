@@ -1,10 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# First, ensure we're running in bash
+if [ -z "$BASH_VERSION" ]; then
+    echo "This script requires bash to run"
+    exit 1
+fi
 
 # Enable error handling for safer script execution
 set -euo pipefail
 
 # Version of our package - centralize this for easier maintenance
-VERSION="1.0.0"
+VERSION=$1
 
 # Define our directory structure
 DIST_DIR="dist"
