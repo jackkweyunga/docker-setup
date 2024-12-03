@@ -16,6 +16,19 @@ VERSION=$1
 DIST_DIR="dist"
 PACKAGE_NAME="docker-setup-${VERSION}"
 
+# Update the version in the script
+# We use a different delimiter (|) because version numbers contain periods
+sed -i "s|VERSION=\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"|VERSION=\"${VERSION}\"|" \
+    "src/docker-setup.sh"
+
+# Verify the version was updated correctly
+if ! grep "VERSION=\"${VERSION}\"" "${DIST_DIR}/${PACKAGE_NAME}/bin/docker-setup" > /dev/null; then
+    echo "Error: Failed to update version in script"
+    exit 1
+fi
+
+echo "Successfully updated script version to ${VERSION}"
+
 echo "Starting build process for Docker Setup Tool v${VERSION}"
 
 # First, let's create our distribution directory structure

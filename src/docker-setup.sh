@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Script version
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 # Function to determine the appropriate configuration directory
 get_config_dir() {
@@ -38,7 +38,6 @@ get_config_dir() {
 
 # Set the configuration directory based on the determination
 CONFIG_DIR=$(get_config_dir)
-TEMPLATE_DIR="/usr/local/share/docker-setup/templates"
 
 # Colors for output
 RED='\033[0;31m'
@@ -170,6 +169,11 @@ setup_environment() {
         if [[ -f "${CONFIG_DIR}/traefik/traefik.yml" ]]; then
             sed -i "s/your-email@domain.com/$email/" "${CONFIG_DIR}/traefik/traefik.yml"
         fi
+
+        # Load existing environment if available
+        log "INFO" "Loading existing environment variables"
+        source "$env_file"
+
     else
         log "INFO" "Using existing configuration:"
         log "INFO" "Portainer Domain: $PORTAINER_DOMAIN"
