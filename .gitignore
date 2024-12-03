@@ -1,4 +1,6 @@
 .env
 bin
 *.tar.gz
+*.sha256
+dist
 
