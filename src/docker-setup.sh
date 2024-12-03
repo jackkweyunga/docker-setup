@@ -325,12 +325,16 @@ main() {
     fi
 }
 
+# Initialize flags to track if we've handled any commands
+HANDLED_COMMAND=false
+
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --portainer-domain)
             if [[ -n "${2:-}" ]]; then
                 update_config "PORTAINER_DOMAIN" "$2"
+                HANDLED_COMMAND=true
                 shift 2
             else
                 log "ERROR" "Missing domain value for --portainer-domain"
@@ -341,6 +345,7 @@ while [[ $# -gt 0 ]]; do
             if [[ -n "${2:-}" ]]; then
                 if validate_email "$2"; then
                     update_config "EMAIL" "$2"
+                    HANDLED_COMMAND=true
                     shift 2
                 else
                     log "ERROR" "Invalid email format"
@@ -353,13 +358,25 @@ while [[ $# -gt 0 ]]; do
             ;;
         --update)
             update_tool
+            HANDLED_COMMAND=true
+            shift
             ;;
         -h|--help)
             show_usage
             exit 0
             ;;
         *)
-            main "$@"
+            if [[ "$1" == -* ]]; then
+                log "ERROR" "Unknown option: $1"
+                show_usage
+                exit 1
+            fi
+            break
             ;;
     esac
 done
+
+# Only run main if no other commands were handled
+if ! $HANDLED_COMMAND; then
+    main "$@"
+fi
