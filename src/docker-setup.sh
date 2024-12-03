@@ -54,7 +54,7 @@ update_tool() {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         # Download and run the installation script
-        curl -fsSL https://raw.githubusercontent.com/yourusername/docker-setup/main/install.sh | bash
+        curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/install.sh | bash
         log "INFO" "Update completed successfully!"
         exit 0
     fi
