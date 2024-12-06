@@ -4,7 +4,7 @@
 set -e
 
 # Determine latest version if none specified
-VERSION="${1:-1.1.12}"
+VERSION="${1:-1.1.2}"
 REPO="jackkweyunga/docker-setup"
 DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}"
 PACKAGE_NAME="docker-setup-${VERSION}"
