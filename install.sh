@@ -59,6 +59,8 @@ cd "${PACKAGE_NAME}"
 # Create installation directories
 sudo mkdir -p /usr/local/bin
 sudo mkdir -p /etc/docker-setup
+sudo mkdir -p /etc/docker-setup/traefik
+sudo mkdir -p /etc/docker-setup/traefik/certs
 touch /etc/docker-setup/traefik/certs/acme.json
 chmod 600 /etc/docker-setup/traefik/certs/acme.json
 sudo mkdir -p /usr/local/share/docker-setup
