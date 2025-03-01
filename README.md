@@ -2,6 +2,8 @@
 
 Automated infrastructure setup tool for Docker with Traefik, Portainer, and Watchtower.
 
+Documentation: https://jackkweyunga.hashnode.dev/docker-setup-a-tool-for-simple-self-hosted-infrastructure
+
 ## Features
 - [x] Install Docker if not there
 - [x] Setup and install Traefik, Portainer and Watchtower
