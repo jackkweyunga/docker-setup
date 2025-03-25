@@ -45,6 +45,14 @@ certificatesResolvers:
       httpChallenge:
         entryPoint: web
 
+  cloudflare:
+    acme:
+      email: {{ EMAIL }}
+      storage: /etc/traefik/certs/acme.json
+      caServer: "https://acme-v02.api.letsencrypt.org/directory"
+      dnsChallenge:
+        provider: cloudflare
+
 providers:
   docker:
     exposedByDefault: false  # Default is true
