@@ -69,7 +69,7 @@ services:
     environment:
       - TZ=${TZ:-Africa/Dar_es_Salaam}
       - WATCHTOWER_LIFECYCLE_HOOKS=1
-    command: --debug --cleanup --interval 3600 # Changed to 1 hour instead of 30 seconds
+    command: --debug --cleanup --interval 60 # 1 minute
     # Include in maintenance profile
     profiles:
       - "maintenance"
