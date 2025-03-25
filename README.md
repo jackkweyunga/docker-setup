@@ -192,7 +192,7 @@ sudo docker-setup --enable-dns-challenge --dns-provider cloudflare --cf-email us
 
 ### Setting Up Subdomains with Cloudflare
 
-To host multiple services on different subdomains with Cloudflare DNS:
+To host services with wildcard subdomains with Cloudflare DNS:
 
 1. **Configure DNS Challenge** as shown above.
 
@@ -203,35 +203,24 @@ To host multiple services on different subdomains with Cloudflare DNS:
    Example Cloudflare DNS settings:
    ```
    Type    Name            Content           Proxy Status
+   A       *               your.server.ip    Proxied
    A       example.com     your.server.ip    Proxied
-   CNAME   app             example.com       Proxied
-   CNAME   blog            example.com       Proxied
-   CNAME   portainer       example.com       Proxied
    ```
 
-3. **Use Traefik Labels for each Service**:
+3. **Use Traefik Labels to specify a HostRegexp and/or Host rule(s)**:
 
    ```yaml
-   # Example docker-compose.yml for multiple subdomains
+   # Example docker-compose.yml for wilddcard subdomains
    services:
      web-app:
        image: webapp:latest
        labels:
          - "traefik.enable=true"
-         - "traefik.http.routers.webapp.rule=Host(`app.example.com`)"
+         - "traefik.http.routers.webapp.rule=Host(`example.com`) || HostRegexp(`.+\.example\.com`)"
          - "traefik.http.routers.webapp.entrypoints=websecure"
          - "traefik.http.routers.webapp.tls.certresolver=cloudflare"
-       networks:
-         - traefik_network
-     
-     blog:
-       image: ghost:latest
-       labels:
-         - "traefik.enable=true"
-         - "traefik.http.routers.blog.rule=Host(`blog.example.com`)"
-         - "traefik.http.routers.blog.entrypoints=websecure"
-         - "traefik.http.routers.blog.tls.certresolver=cloudflare"
-         - "traefik.http.services.blog.loadbalancer.server.port=2368"
+         - "traefik.http.routers.webapp.tls.domains[0].main=example.com"
+         - "traefik.http.routers.webapp.tls.domains[0].sans=*.example.com"
        networks:
          - traefik_network
    
@@ -245,66 +234,7 @@ To host multiple services on different subdomains with Cloudflare DNS:
    docker compose up -d
    ```
 
-This will automatically generate SSL certificates for each subdomain using the Cloudflare DNS challenge.
-
-### Setting Up Subdomains with Cloudflare
-
-To host multiple services on different subdomains with Cloudflare DNS:
-
-1. **Configure DNS Challenge** as shown above.
-
-2. **Create A/CNAME Records in Cloudflare**:
-   - Create an A record pointing your root domain to your server IP
-   - Create CNAME records for each subdomain pointing to your root domain
-   
-   Example Cloudflare DNS settings:
-   ```
-   Type    Name            Content           Proxy Status
-   A       example.com     your.server.ip    Proxied
-   CNAME   app             example.com       Proxied
-   CNAME   blog            example.com       Proxied
-   CNAME   portainer       example.com       Proxied
-   ```
-
-3. **Use Traefik Labels for each Service**:
-
-   ```yaml
-   # Example docker-compose.yml for multiple subdomains
-   version: '3'
-   
-   services:
-     web-app:
-       image: webapp:latest
-       labels:
-         - "traefik.enable=true"
-         - "traefik.http.routers.webapp.rule=Host(`app.example.com`)"
-         - "traefik.http.routers.webapp.entrypoints=websecure"
-         - "traefik.http.routers.webapp.tls.certresolver=cloudflare"
-       networks:
-         - traefik_network
-     
-     blog:
-       image: ghost:latest
-       labels:
-         - "traefik.enable=true"
-         - "traefik.http.routers.blog.rule=Host(`blog.example.com`)"
-         - "traefik.http.routers.blog.entrypoints=websecure"
-         - "traefik.http.routers.blog.tls.certresolver=cloudflare"
-         - "traefik.http.services.blog.loadbalancer.server.port=2368"
-       networks:
-         - traefik_network
-   
-   networks:
-     traefik_network:
-       external: true
-   ```
-
-4. **Apply Configuration**:
-   ```bash
-   docker compose up -d
-   ```
-
-This will automatically generate SSL certificates for each subdomain using the Cloudflare DNS challenge.
+This will automatically generate a wildcard SSL certificates for each subdomain using the Cloudflare DNS challenge.
 
 ### Customizing Traefik Configuration
 
