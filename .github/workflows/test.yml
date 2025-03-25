@@ -19,8 +19,8 @@ jobs:
 
       - name: Set version from tag
         run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-          echo "Building version ${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=0.1.0" >> $GITHUB_ENV
+          echo "Building version 0.1.0"
 
       - name: Make build script executable
         run: |
