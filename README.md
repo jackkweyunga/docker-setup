@@ -219,8 +219,8 @@ To host services with wildcard subdomains with Cloudflare DNS:
          - "traefik.http.routers.webapp.rule=Host(`example.com`) || HostRegexp(`.+\.example\.com`)"
          - "traefik.http.routers.webapp.entrypoints=websecure"
          - "traefik.http.routers.webapp.tls.certresolver=cloudflare"
-         - "traefik.http.routers.tidp.tls.domains[0].main=example.com"
-         - "traefik.http.routers.tidp.tls.domains[0].sans=*.example.com"
+         - "traefik.http.routers.webapp.tls.domains[0].main=example.com"
+         - "traefik.http.routers.webapp.tls.domains[0].sans=*.example.com"
        networks:
          - traefik_network
    
