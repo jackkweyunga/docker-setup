@@ -1,3 +1,7 @@
+#!/bin/bash
+
+#!/usr/bin/env bash
+
 # Function to setup environment for Traefik dashboard
 setup_traefik_dashboard() {
     local enable_dashboard="${ENABLE_TRAEFIK_DASHBOARD:-}"
@@ -70,10 +74,6 @@ EOF
         log "INFO" "Setting Traefik dashboard port to: ${TRAEFIK_DASHBOARD_PORT}"
     fi
 }
-
-#!/bin/bash
-
-#!/usr/bin/env bash
 
 # Check for sudo privileges
 if [ "$EUID" -ne 0 ]; then

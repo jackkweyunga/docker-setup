@@ -46,3 +46,12 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit installation script
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add install.sh 
+          git add src/docker-setup.sh
+          git commit -m "Update VERSION for version ${{ env.VERSION }}" || echo "No changes to commit"
+          git push origin HEAD:main || echo "No changes to push"
