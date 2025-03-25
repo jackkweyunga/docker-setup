@@ -37,7 +37,7 @@ curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/inst
 ### Install Specific Version
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/install.sh | bash -s -- --version 1.1.2
+curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/install.sh | bash -s -- --version 1.3.1
 ```
 
 ### Development Install
@@ -54,6 +54,23 @@ cd docker-setup
 ### Basic Setup
 
 Run the tool with sudo to start the interactive setup:
+
+`NOTE`: If you are going to use watchtower for automatic pulling of images, make sure you are logged in to your container registry after docker installation.
+
+```bash
+sudo docker-setup
+```
+
+If docker is not installed, will prompt installation. After installation, you can login to docker incase you will be ddealing with private images.
+
+```bash
+# optional
+sudo docker login # for dockerhub
+sudo docker login ghcr.io # for github
+# ...
+```
+
+After docker is installed then run again:
 
 ```bash
 sudo docker-setup
