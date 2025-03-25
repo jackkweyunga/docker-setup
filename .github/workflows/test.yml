@@ -2,8 +2,8 @@ name: Build test for Docker Setup Tool
 
 on:
   push:
-    tags:
-      - 'main'
+    branches:
+      - main
 
 permissions:
   contents: write
