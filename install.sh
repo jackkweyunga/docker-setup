@@ -141,7 +141,7 @@ if [ "$INSTALL_MODE" = "remote" ]; then
     cd "${PACKAGE_NAME}"
     
     # Install components
-    sudo cp bin/docker-setup.sh /usr/local/bin/docker-setup
+    sudo cp bin/docker-setup /usr/local/bin/docker-setup
     sudo cp -r config/* /etc/docker-setup/
     sudo chmod +x /usr/local/bin/docker-setup
     
