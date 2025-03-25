@@ -1,6 +1,85 @@
+# Function to setup environment for Traefik dashboard
+setup_traefik_dashboard() {
+    local enable_dashboard="${ENABLE_TRAEFIK_DASHBOARD:-}"
+    
+    # If not set, ask the user
+    if [[ -z "$enable_dashboard" ]]; then
+        read -p "Do you want to enable the Traefik dashboard? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            update_config "ENABLE_TRAEFIK_DASHBOARD" "true"
+            
+            # Ask for dashboard port
+            read -p "Enter port for Traefik dashboard [8080]: " dashboard_port
+            dashboard_port=${dashboard_port:-8080}
+            update_config "TRAEFIK_DASHBOARD_PORT" "$dashboard_port"
+        else
+            update_config "ENABLE_TRAEFIK_DASHBOARD" "false"
+        fi
+    fi
+    
+    # Update Traefik configuration
+    update_traefik_dashboard
+}
+# Function to update Traefik dashboard settings
+update_traefik_dashboard() {
+    local traefik_config="${CONFIG_DIR}/traefik/traefik.yml"
+    
+    # Load existing environment variables
+    local env_file="${CONFIG_DIR}/.env"
+    if [[ -f "$env_file" ]]; then
+        source "$env_file"
+    fi
+    
+    # Check if traefik.yml exists
+    if [[ ! -f "$traefik_config" ]]; then
+        log "ERROR" "Traefik configuration file not found: ${traefik_config}"
+        return 1
+    fi
+    
+    # Update dashboard settings based on environment variables
+    if [[ "${ENABLE_TRAEFIK_DASHBOARD:-false}" == "true" ]]; then
+        # Enable dashboard
+        if grep -q "api:" "$traefik_config"; then
+            # Update existing api section
+            sed -i '/api:/,/insecure:/ s/dashboard: .*/dashboard: true/' "$traefik_config"
+            sed -i '/api:/,/insecure:/ s/insecure: .*/insecure: true/' "$traefik_config"
+        else
+            # Add api section if it doesn't exist
+            cat << EOF >> "$traefik_config"
+
+# API and Dashboard configuration
+api:
+  dashboard: true
+  insecure: true
+EOF
+        fi
+        log "INFO" "Traefik dashboard enabled"
+    else
+        # Disable dashboard
+        if grep -q "api:" "$traefik_config"; then
+            # Update existing api section
+            sed -i '/api:/,/insecure:/ s/dashboard: .*/dashboard: false/' "$traefik_config"
+            sed -i '/api:/,/insecure:/ s/insecure: .*/insecure: false/' "$traefik_config"
+        fi
+        log "INFO" "Traefik dashboard disabled"
+    fi
+    
+    # Update port if specified
+    if [[ -n "${TRAEFIK_DASHBOARD_PORT:-}" ]]; then
+        log "INFO" "Setting Traefik dashboard port to: ${TRAEFIK_DASHBOARD_PORT}"
+    fi
+}
+
 #!/bin/bash
 
 #!/usr/bin/env bash
+
+# Check for sudo privileges
+if [ "$EUID" -ne 0 ]; then
+    echo "This script requires sudo privileges. Please run with sudo."
+    exit 1
+fi
 
 # First, ensure we're running in bash
 if [ -z "$BASH_VERSION" ]; then
@@ -9,28 +88,39 @@ if [ -z "$BASH_VERSION" ]; then
 fi
 
 # Script version
-VERSION="1.1.2"
+VERSION="dev"
 
 # Get usage information and argument parsing
 show_usage() {
     cat << EOF
-Usage: docker-setup [OPTIONS]
+Usage: sudo docker-setup [OPTIONS]
 
 A tool for managing Docker infrastructure setup
 
 Options:
+    --enable-portainer          Enable Portainer container management UI
+    --disable-portainer         Disable Portainer container management UI
     --portainer-domain DOMAIN   Set the Portainer domain (e.g., portainer.example.com)
     --email EMAIL               Set the email for SSL certificates
     --update                    Update to the latest version
+    --enable-dns-challenge      Enable DNS challenge for SSL certificates
+    --dns-provider PROVIDER     Set the DNS provider (currently only 'cloudflare' supported)
+    --cf-email EMAIL            Set the Cloudflare API email
+    --cf-api-token TOKEN        Set the Cloudflare DNS API token
+    --enable-traefik-dashboard  Enable Traefik dashboard
+    --disable-traefik-dashboard Disable Traefik dashboard
+    --traefik-dashboard-port PORT Set the Traefik dashboard port (default: 8080)
     -h, --help                  Show this help message
 
 Examples:
-    docker-setup --portainer-domain portainer.example.com --email admin@example.com
-    docker-setup --update
+    sudo docker-setup --enable-portainer --portainer-domain portainer.example.com --email admin@example.com
+    sudo docker-setup --enable-dns-challenge --dns-provider cloudflare --cf-email user@domain.com --cf-api-token your_token
+    sudo docker-setup --enable-traefik-dashboard --traefik-dashboard-port 8080
+    sudo docker-setup --update
 EOF
 }
 
-# Function to handle updating the tool to a new version
+# Function to update the tool to a new version
 update_tool() {
     log "INFO" "Checking for updates..."
     
@@ -87,7 +177,6 @@ update_config() {
     fi
 }
 
-
 # Function to determine the appropriate configuration directory
 get_config_dir() {
     # First, check if CONFIG_DIR is explicitly set in the environment
@@ -97,25 +186,19 @@ get_config_dir() {
         return
     fi
 
-    # System-wide installation
-    # In the mean time
+    # Since we're running as root, use system-wide configuration
     echo "Using system-wide configuration directory: /etc/docker-setup" >&2
+    
+    # Create the directory if it doesn't exist
+    if [[ ! -d "/etc/docker-setup" ]]; then
+        mkdir -p /etc/docker-setup
+        # If SUDO_USER is set, change ownership to the original user
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            chown -R $SUDO_USER:$(id -g $SUDO_USER) /etc/docker-setup
+        fi
+    fi
+    
     echo "/etc/docker-setup"
-    return
-
-    # TODO: Decide whether the approach below is good
-    # Check if running as root or with sudo
-    # if [[ $EUID -eq 0 ]]; then
-    #     # System-wide installation
-    #     echo "Using system-wide configuration directory: /etc/docker-setup" >&2
-    #     echo "/etc/docker-setup"
-    #     return
-    # fi
-
-    # If user is running the script normally, use local configuration
-    # local user_config_dir="$HOME/.docker-setup"
-    # echo "Using user-specific configuration directory: $user_config_dir" >&2
-    # echo "$user_config_dir"
 }
 
 # Set the configuration directory based on the determination
@@ -151,14 +234,18 @@ install_docker() {
     log "INFO" "Installing Docker..."
     
     if curl -fsSL https://get.docker.com -o get-docker.sh; then
-        sudo sh get-docker.sh
-        sudo usermod -aG docker $USER
+        sh get-docker.sh
+        usermod -aG docker $SUDO_USER
         log "INFO" "Docker installation completed. You'll need to log out and back in for group changes to take effect."
         
         read -p "Would you like to restart the shell now to apply docker group changes? (y/n) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            exec su -l $USER
+            if [ -n "$SUDO_USER" ]; then
+                exec su -l $SUDO_USER
+            else
+                log "WARN" "Unable to determine the original user. Please log out and log back in."
+            fi
         fi
     else
         log "ERROR" "Failed to download Docker installation script"
@@ -216,6 +303,136 @@ show_directory_structure() {
         └── traefik.yml"
 }
 
+# Function to handle DNS challenge setup
+setup_dns_challenge() {
+    local env_file="${CONFIG_DIR}/.env"
+    local use_dns_challenge="${USE_DNS_CHALLENGE:-}"
+    
+    # If USE_DNS_CHALLENGE is not set, ask the user
+    if [[ -z "$use_dns_challenge" ]]; then
+        read -p "Do you want to use DNS challenge for SSL certificate validation? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            update_config "USE_DNS_CHALLENGE" "true"
+            select_dns_provider
+        else
+            update_config "USE_DNS_CHALLENGE" "false"
+            log "INFO" "DNS challenge disabled. Using HTTP challenge instead."
+        fi
+    elif [[ "$use_dns_challenge" == "true" && -z "${DNS_PROVIDER:-}" ]]; then
+        # If DNS challenge is enabled but no provider is set
+        select_dns_provider
+    fi
+}
+
+# Function to select DNS provider
+select_dns_provider() {
+    local provider="${DNS_PROVIDER:-}"
+    
+    # If provider is already set, confirm or change
+    if [[ -n "$provider" ]]; then
+        log "INFO" "Current DNS provider: $provider"
+        read -p "Do you want to change the DNS provider? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            # Provider remains the same, just validate credentials
+            setup_dns_provider_credentials "$provider"
+            return
+        fi
+    fi
+    
+    # Show available providers
+    echo "Available DNS providers:"
+    echo "1) Cloudflare"
+    # Add more providers here in the future
+    
+    # Get user selection
+    read -p "Select a DNS provider (enter number): " provider_num
+    
+    case "$provider_num" in
+        1)
+            update_config "DNS_PROVIDER" "cloudflare"
+            setup_dns_provider_credentials "cloudflare"
+            ;;
+        *)
+            log "ERROR" "Invalid selection. Defaulting to HTTP challenge."
+            update_config "USE_DNS_CHALLENGE" "false"
+            ;;
+    esac
+}
+
+# Function to set up DNS provider credentials
+setup_dns_provider_credentials() {
+    local provider=$1
+    
+    case "$provider" in
+        "cloudflare")
+            setup_cloudflare_credentials
+            ;;
+        *)
+            log "ERROR" "Unsupported DNS provider: $provider"
+            ;;
+    esac
+}
+
+# Function to set up Cloudflare credentials
+setup_cloudflare_credentials() {
+    local cf_email="${CF_API_EMAIL:-}"
+    local cf_api_token="${CF_DNS_API_TOKEN:-}"
+    
+    log "INFO" "Setting up Cloudflare DNS credentials"
+    
+    # Get Cloudflare email if not set
+    if [[ -z "$cf_email" ]]; then
+        read -p "Enter your Cloudflare account email: " cf_email
+        if ! validate_email "$cf_email"; then
+            log "ERROR" "Invalid email format"
+            setup_cloudflare_credentials
+            return
+        fi
+    else
+        log "INFO" "Using existing Cloudflare email: $cf_email"
+        read -p "Do you want to change it? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            read -p "Enter your Cloudflare account email: " cf_email
+            if ! validate_email "$cf_email"; then
+                log "ERROR" "Invalid email format"
+                setup_cloudflare_credentials
+                return
+            fi
+        fi
+    fi
+    
+    # Get Cloudflare API token if not set
+    if [[ -z "$cf_api_token" ]]; then
+        read -p "Enter your Cloudflare DNS API token: " cf_api_token
+        if [[ -z "$cf_api_token" ]]; then
+            log "ERROR" "API token cannot be empty"
+            setup_cloudflare_credentials
+            return
+        fi
+    else
+        log "INFO" "Cloudflare API token is already set"
+        read -p "Do you want to change it? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            read -p "Enter your Cloudflare DNS API token: " cf_api_token
+            if [[ -z "$cf_api_token" ]]; then
+                log "ERROR" "API token cannot be empty"
+                setup_cloudflare_credentials
+                return
+            fi
+        fi
+    fi
+    
+    # Update configuration
+    update_config "CF_API_EMAIL" "$cf_email"
+    update_config "CF_DNS_API_TOKEN" "$cf_api_token"
+    
+    log "INFO" "Cloudflare credentials configured successfully"
+}
+
 # Function to handle environment variables
 setup_environment() {
     local env_file="${CONFIG_DIR}/.env"
@@ -229,37 +446,104 @@ setup_environment() {
     fi
     
     # Check if we need to prompt for configuration
-    if [[ -z "${PORTAINER_DOMAIN:-}" || -z "${EMAIL:-}" ]]; then
+    if [[ -z "${USE_PORTAINER:-}" || -z "${EMAIL:-}" ]]; then
         log "INFO" "Configuring environment variables..."
         
-        # Get domain
-        read -p "Enter your domain for Portainer (e.g., portainer.example.com): " portainer_domain
-        echo "PORTAINER_DOMAIN=$portainer_domain" >> "$env_file"
-        
-        # Get email with validation
-        while true; do
-            read -p "Enter your email address for SSL certificates: " email
-            if validate_email "$email"; then
-                echo "EMAIL=$email" >> "$env_file"
-                break
+        # Ask if Portainer should be enabled
+        if [[ -z "${USE_PORTAINER:-}" ]]; then
+            read -p "Do you want to include Portainer in your setup? (y/n) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                update_config "USE_PORTAINER" "true"
+                
+                # Only ask for Portainer domain if it's enabled
+                if [[ -z "${PORTAINER_DOMAIN:-}" ]]; then
+                    read -p "Enter your domain for Portainer (e.g., portainer.example.com): " portainer_domain
+                    update_config "PORTAINER_DOMAIN" "$portainer_domain"
+                fi
             else
-                log "WARN" "Invalid email format. Please try again."
+                update_config "USE_PORTAINER" "false"
+                log "INFO" "Portainer will not be included in the setup"
             fi
-        done
+        elif [[ "${USE_PORTAINER}" == "true" && -z "${PORTAINER_DOMAIN:-}" ]]; then
+            # If Portainer is enabled but no domain is set
+            read -p "Enter your domain for Portainer (e.g., portainer.example.com): " portainer_domain
+            update_config "PORTAINER_DOMAIN" "$portainer_domain"
+        fi
         
-        # Update Traefik configuration
-        if [[ -f "${CONFIG_DIR}/traefik/traefik.yml" ]]; then
-            sed -i "s/your-email@domain.com/$email/" "${CONFIG_DIR}/traefik/traefik.yml"
+        # Get email with validation if not set
+        if [[ -z "${EMAIL:-}" ]]; then
+            while true; do
+                read -p "Enter your email address for SSL certificates: " email
+                if validate_email "$email"; then
+                    update_config "EMAIL" "$email"
+                    break
+                else
+                    log "WARN" "Invalid email format. Please try again."
+                fi
+            done
+            
+            # Update Traefik configuration
+            if [[ -f "${CONFIG_DIR}/traefik/traefik.yml" ]]; then
+                sed -i "s/your-email@domain.com/$email/" "${CONFIG_DIR}/traefik/traefik.yml"
+                # Also update the existing email in the file
+                sed -i "s/akauntiyamchezo@gmail.com/$email/" "${CONFIG_DIR}/traefik/traefik.yml"
+                # Update the Cloudflare email placeholder
+                sed -i "s/{{ EMAIL }}/$email/" "${CONFIG_DIR}/traefik/traefik.yml"
+            fi
         fi
 
-        # Load existing environment if available
-        log "INFO" "Loading existing environment variables"
-        source "$env_file"
-
+        # Reload environment variables
+        if [[ -f "$env_file" ]]; then
+            log "INFO" "Loading updated environment variables"
+            set -a
+            source "$env_file"
+            set +a
+        fi
     else
         log "INFO" "Using existing configuration:"
-        log "INFO" "Portainer Domain: $PORTAINER_DOMAIN"
+        if [[ "${ENABLE_PORTAINER}" == "true" ]]; then
+            log "INFO" "Portainer Enabled: Yes"
+            log "INFO" "Portainer Domain: ${PORTAINER_DOMAIN:-Not Set}"
+        else
+            log "INFO" "Portainer Enabled: No"
+        fi
         log "INFO" "Email: $EMAIL"
+    fi
+    
+    # Setup Traefik dashboard
+    setup_traefik_dashboard
+    
+    # Setup DNS challenge if needed
+    setup_dns_challenge
+}
+
+# Function to show current DNS challenge configuration
+show_dns_config() {
+    local env_file="${CONFIG_DIR}/.env"
+    
+    # Load .env file if it exists
+    if [[ -f "$env_file" ]]; then
+        source "$env_file"
+    else
+        log "ERROR" "Configuration file not found"
+        return 1
+    fi
+    
+    # Display DNS challenge configuration
+    log "INFO" "DNS Challenge Configuration:"
+    echo "DNS Challenge Enabled: ${USE_DNS_CHALLENGE:-false}"
+    
+    if [[ "${USE_DNS_CHALLENGE:-false}" == "true" ]]; then
+        echo "DNS Provider: ${DNS_PROVIDER:-none}"
+        
+        if [[ "${DNS_PROVIDER:-}" == "cloudflare" ]]; then
+            echo "Cloudflare Email: ${CF_API_EMAIL:-not set}"
+            echo "Cloudflare API Token: ${CF_DNS_API_TOKEN:+[set]}"
+            if [[ -z "${CF_DNS_API_TOKEN:-}" ]]; then
+                echo "Cloudflare API Token: not set"
+            fi
+        fi
     fi
 }
 
@@ -302,7 +586,8 @@ main() {
         log "INFO" "Running Docker Compose from ${CONFIG_DIR}"
         
         # Run docker compose with proper error handling
-        if docker compose up -d; then
+        # Pass through any additional arguments (like profiles)
+        if docker compose $@ up -d; then
             local status=$?
             cd "${original_dir}"  # Return to original directory
             return $status
@@ -315,9 +600,34 @@ main() {
     
     # Start services
     log "INFO" "Starting Docker containers"
-    if run_docker_compose; then
+    
+    # Determine which profiles to use
+    local profiles=""
+    if [[ "${USE_PORTAINER:-false}" == "true" ]]; then
+        profiles="--profile portainer"
+    fi
+    
+    if [[ "${ENABLE_TRAEFIK_DASHBOARD:-false}" == "true" ]]; then
+        profiles="$profiles --profile ui"
+    fi
+    
+    # Check if we should use Watchtower
+    if [[ "${USE_WATCHTOWER:-true}" == "true" ]]; then
+        profiles="$profiles --profile maintenance"
+    fi
+    
+    # If no specific profiles, use default
+    if [[ -z "$profiles" ]]; then
+        log "INFO" "Using default configuration"
+    else
+        log "INFO" "Using profiles: $profiles"
+    fi
+    
+    if run_docker_compose $profiles; then
         log "INFO" "Setup completed successfully!"
-        log "INFO" "Access Portainer at: https://$PORTAINER_DOMAIN"
+        if [[ "${USE_PORTAINER:-false}" == "true" && -n "${PORTAINER_DOMAIN:-}" ]]; then
+            log "INFO" "Access Portainer at: https://$PORTAINER_DOMAIN"
+        fi
         log "INFO" "Please allow a few minutes for SSL certificates to be generated"
     else
         log "ERROR" "Failed to start containers. Check the logs for details."
@@ -331,9 +641,21 @@ HANDLED_COMMAND=false
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --enable-portainer)
+            update_config "USE_PORTAINER" "true"
+            HANDLED_COMMAND=true
+            shift
+            ;;
+        --disable-portainer)
+            update_config "USE_PORTAINER" "false"
+            HANDLED_COMMAND=true
+            shift
+            ;;
         --portainer-domain)
             if [[ -n "${2:-}" ]]; then
                 update_config "PORTAINER_DOMAIN" "$2"
+                # If setting portainer domain, implicitly enable portainer
+                update_config "USE_PORTAINER" "true"
                 HANDLED_COMMAND=true
                 shift 2
             else
@@ -355,6 +677,77 @@ while [[ $# -gt 0 ]]; do
                 log "ERROR" "Missing email value for --email"
                 exit 1
             fi
+            ;;
+        --enable-dns-challenge)
+            update_config "USE_DNS_CHALLENGE" "true"
+            HANDLED_COMMAND=true
+            shift
+            ;;
+        --dns-provider)
+            if [[ -n "${2:-}" ]]; then
+                if [[ "$2" == "cloudflare" ]]; then
+                    update_config "DNS_PROVIDER" "$2"
+                    HANDLED_COMMAND=true
+                    shift 2
+                else
+                    log "ERROR" "Unsupported DNS provider: $2"
+                    log "INFO" "Currently supported providers: cloudflare"
+                    exit 1
+                fi
+            else
+                log "ERROR" "Missing provider value for --dns-provider"
+                exit 1
+            fi
+            ;;
+        --cf-email)
+            if [[ -n "${2:-}" ]]; then
+                if validate_email "$2"; then
+                    update_config "CF_API_EMAIL" "$2"
+                    HANDLED_COMMAND=true
+                    shift 2
+                else
+                    log "ERROR" "Invalid email format"
+                    exit 1
+                fi
+            else
+                log "ERROR" "Missing email value for --cf-email"
+                exit 1
+            fi
+            ;;
+        --cf-api-token)
+            if [[ -n "${2:-}" ]]; then
+                update_config "CF_DNS_API_TOKEN" "$2"
+                HANDLED_COMMAND=true
+                shift 2
+            else
+                log "ERROR" "Missing token value for --cf-api-token"
+                exit 1
+            fi
+            ;;
+        --enable-traefik-dashboard)
+            update_config "ENABLE_TRAEFIK_DASHBOARD" "true"
+            HANDLED_COMMAND=true
+            shift
+            ;;
+        --disable-traefik-dashboard)
+            update_config "ENABLE_TRAEFIK_DASHBOARD" "false"
+            HANDLED_COMMAND=true
+            shift
+            ;;
+        --traefik-dashboard-port)
+            if [[ -n "${2:-}" ]]; then
+                update_config "TRAEFIK_DASHBOARD_PORT" "$2"
+                HANDLED_COMMAND=true
+                shift 2
+            else
+                log "ERROR" "Missing port value for --traefik-dashboard-port"
+                exit 1
+            fi
+            ;;
+        --show-dns-config)
+            show_dns_config
+            HANDLED_COMMAND=true
+            shift
             ;;
         --update)
             update_tool

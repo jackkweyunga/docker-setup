@@ -1,54 +1,341 @@
-# Docker Setup 4 simple and streamlined docker deployments
+# Docker Setup
 
-Automated infrastructure setup tool for Docker with Traefik, Portainer, and Watchtower.
+![Version](https://img.shields.io/github/v/release/jackkweyunga/docker-setup)
+![License](https://img.shields.io/github/license/jackkweyunga/docker-setup)
 
-Documentation: https://jackkweyunga.hashnode.dev/docker-setup-a-tool-for-simple-self-hosted-infrastructure
+> 🚀 Simple and streamlined Docker deployments with zero hassle
 
-## Features
-- [x] Install Docker if not there
-- [x] Setup and install Traefik, Portainer and Watchtower
-- [x] Update portainer domain command ( --portainer-domain p.example.com )
-- [x] Update traefik email command ( --email xxx@xx.xx )
-- [x] Update to new version command ( --update )
+Docker Setup is a lightweight tool that automates the deployment of Docker infrastructure with a reverse proxy, container management, and automated updates. Perfect for self-hosting applications with minimal configuration.
 
-## Quick Install
+## 📋 Features
+
+- **Zero-Dependency Installation**: Simple Bash script that works on any Linux distribution
+- **Automatic Docker Setup**: Installs Docker if not already present
+- **Reverse Proxy with Traefik**: Automatic HTTPS with Let's Encrypt certificates
+- **Container Management UI**: Optional Portainer integration for easy container management
+- **Automatic Updates**: Optional Watchtower integration for keeping containers up-to-date
+- **DNS Challenge Support**: Configure DNS verification for wildcard certificates (Cloudflare supported)
+- **Profile-Based Deployment**: Flexible component selection through Docker Compose profiles
+- **Command-Line Management**: Easy configuration through command-line options
+- **Traefik Dashboard**: Optional access to Traefik's monitoring interface
+
+## 🧰 Prerequisites
+
+- A Linux server (Debian, Ubuntu, CentOS, etc.)
+- Root/sudo access
+- Internet connectivity
+- A domain name (for HTTPS)
+
+## 🔧 Installation
+
+### Quick Install (Latest Version)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/install.sh | bash
 ```
 
-## Usage
+### Install Specific Version
 
 ```bash
-# Basic setup
-sudo docker-setup
-
-# Help
-sudo docker-setup --help
-
-# With custom domain
-sudo docker-setup --portainer-domain example.com
-
-# With custom email
-sudo docker-setup --email admin@example.com
+curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/install.sh | bash -s -- --version 1.1.2
 ```
 
-## Configuration
+### Development Install
+
+If you've cloned the repository and want to install from your local copy:
+
+```bash
+cd docker-setup
+./install.sh --dev
+```
+
+## 🚀 Usage
+
+### Basic Setup
+
+Run the tool with sudo to start the interactive setup:
+
+```bash
+sudo docker-setup
+```
+
+The interactive setup will ask for:
+- Email address (for SSL certificates)
+- Whether to enable Portainer
+- Portainer domain (if enabled)
+- Whether to enable the Traefik dashboard
+- Whether to use DNS challenge for certificates
+
+### Command-Line Options
+
+```bash
+# Show help
+sudo docker-setup --help
+
+# Set Portainer domain
+sudo docker-setup --portainer-domain portainer.example.com
+
+# Set email for SSL certificates
+sudo docker-setup --email admin@example.com
+
+# Enable Traefik dashboard
+sudo docker-setup --enable-traefik-dashboard --traefik-dashboard-port 8080
+
+# Enable DNS challenge with Cloudflare
+sudo docker-setup --enable-dns-challenge --dns-provider cloudflare --cf-email user@example.com --cf-api-token your_token
+
+# Update to the latest version
+sudo docker-setup --update
+```
+
+## ⚙️ Configuration
 
 Configuration files are stored in:
 - `/etc/docker-setup/`
 
-## Updating
+### Key Files
+
+- `/etc/docker-setup/docker-compose.yml`: Service definitions
+- `/etc/docker-setup/traefik/traefik.yml`: Traefik configuration
+- `/etc/docker-setup/.env`: Environment variables
+
+### Docker Compose Profiles
+
+The tool uses Docker Compose profiles for flexible deployment:
+
+- **Default**: Traefik (always deployed)
+- **portainer**: Portainer container management UI
+- **ui**: Traefik dashboard interface
+- **maintenance**: Watchtower for automatic updates
+- **all**: All components
+
+The tool automatically selects the appropriate profiles based on your configuration choices.
+
+## 🌐 Using with Your Applications
+
+After setup, add your own services with Traefik integration:
+
+```yaml
+# Example docker-compose.yml for your application
+services:
+  my-app:
+    image: my-app-image
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.my-app.rule=Host(`app.example.com`)"
+      - "traefik.http.routers.my-app.entrypoints=websecure"
+      - "traefik.http.routers.my-app.tls.certresolver=production"
+    networks:
+      - traefik_network
+
+networks:
+  traefik_network:
+    external: true
+```
+
+## 🔄 Updating
 
 To update to the latest version:
+
 ```bash
 sudo docker-setup --update
 ```
 
-## Contributing
+## 🚧 Troubleshooting
 
-Contributions are welcome! Please read our [contributing guidelines](CONTRIBUTING.md) first.
+### Common Issues
 
-## License
+1. **"Network traefik_network not found"**  
+   Solution: Create the network manually:
+   ```bash
+   sudo docker network create traefik_network
+   ```
+
+2. **SSL certificate issues**  
+   Solution: 
+   - Ensure your domain points to your server
+   - Verify ports 80 and 443 are open
+   - Check for valid email address
+
+3. **Services not visible**  
+   Solution:
+   - Check that services are connected to `traefik_network`
+   - Verify Traefik labels are correctly configured
+   - Inspect logs: `sudo docker logs traefik`
+
+### Viewing Logs
+
+```bash
+# Traefik logs
+sudo docker logs traefik
+
+# Portainer logs
+sudo docker logs portainer
+```
+
+## 📚 Advanced Topics
+
+### DNS Challenge for Wildcard Certificates
+
+To set up DNS challenge with Cloudflare:
+
+```bash
+sudo docker-setup --enable-dns-challenge --dns-provider cloudflare --cf-email user@example.com --cf-api-token your_token
+```
+
+#### Creating a Cloudflare API Token
+
+1. Log in to Cloudflare
+2. Go to My Profile → API Tokens
+3. Create a token with Zone:DNS:Edit permissions
+4. Use this token with the `--cf-api-token` parameter
+
+### Setting Up Subdomains with Cloudflare
+
+To host multiple services on different subdomains with Cloudflare DNS:
+
+1. **Configure DNS Challenge** as shown above.
+
+2. **Create A/CNAME Records in Cloudflare**:
+   - Create an A record pointing your root domain to your server IP
+   - Create CNAME records for each subdomain pointing to your root domain
+   
+   Example Cloudflare DNS settings:
+   ```
+   Type    Name            Content           Proxy Status
+   A       example.com     your.server.ip    Proxied
+   CNAME   app             example.com       Proxied
+   CNAME   blog            example.com       Proxied
+   CNAME   portainer       example.com       Proxied
+   ```
+
+3. **Use Traefik Labels for each Service**:
+
+   ```yaml
+   # Example docker-compose.yml for multiple subdomains
+   services:
+     web-app:
+       image: webapp:latest
+       labels:
+         - "traefik.enable=true"
+         - "traefik.http.routers.webapp.rule=Host(`app.example.com`)"
+         - "traefik.http.routers.webapp.entrypoints=websecure"
+         - "traefik.http.routers.webapp.tls.certresolver=cloudflare"
+       networks:
+         - traefik_network
+     
+     blog:
+       image: ghost:latest
+       labels:
+         - "traefik.enable=true"
+         - "traefik.http.routers.blog.rule=Host(`blog.example.com`)"
+         - "traefik.http.routers.blog.entrypoints=websecure"
+         - "traefik.http.routers.blog.tls.certresolver=cloudflare"
+         - "traefik.http.services.blog.loadbalancer.server.port=2368"
+       networks:
+         - traefik_network
+   
+   networks:
+     traefik_network:
+       external: true
+   ```
+
+4. **Apply Configuration**:
+   ```bash
+   docker compose up -d
+   ```
+
+This will automatically generate SSL certificates for each subdomain using the Cloudflare DNS challenge.
+
+### Setting Up Subdomains with Cloudflare
+
+To host multiple services on different subdomains with Cloudflare DNS:
+
+1. **Configure DNS Challenge** as shown above.
+
+2. **Create A/CNAME Records in Cloudflare**:
+   - Create an A record pointing your root domain to your server IP
+   - Create CNAME records for each subdomain pointing to your root domain
+   
+   Example Cloudflare DNS settings:
+   ```
+   Type    Name            Content           Proxy Status
+   A       example.com     your.server.ip    Proxied
+   CNAME   app             example.com       Proxied
+   CNAME   blog            example.com       Proxied
+   CNAME   portainer       example.com       Proxied
+   ```
+
+3. **Use Traefik Labels for each Service**:
+
+   ```yaml
+   # Example docker-compose.yml for multiple subdomains
+   version: '3'
+   
+   services:
+     web-app:
+       image: webapp:latest
+       labels:
+         - "traefik.enable=true"
+         - "traefik.http.routers.webapp.rule=Host(`app.example.com`)"
+         - "traefik.http.routers.webapp.entrypoints=websecure"
+         - "traefik.http.routers.webapp.tls.certresolver=cloudflare"
+       networks:
+         - traefik_network
+     
+     blog:
+       image: ghost:latest
+       labels:
+         - "traefik.enable=true"
+         - "traefik.http.routers.blog.rule=Host(`blog.example.com`)"
+         - "traefik.http.routers.blog.entrypoints=websecure"
+         - "traefik.http.routers.blog.tls.certresolver=cloudflare"
+         - "traefik.http.services.blog.loadbalancer.server.port=2368"
+       networks:
+         - traefik_network
+   
+   networks:
+     traefik_network:
+       external: true
+   ```
+
+4. **Apply Configuration**:
+   ```bash
+   docker compose up -d
+   ```
+
+This will automatically generate SSL certificates for each subdomain using the Cloudflare DNS challenge.
+
+### Customizing Traefik Configuration
+
+Edit the Traefik configuration:
+
+```bash
+sudo nano /etc/docker-setup/traefik/traefik.yml
+```
+
+Restart Traefik to apply changes:
+
+```bash
+sudo docker restart traefik
+```
+
+## 👥 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
+
+## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+Documentation: https://jackkweyunga.hashnode.dev/docker-setup-a-tool-for-simple-self-hosted-infrastructure
+
+Created by [Jack Kweyunga](https://github.com/jackkweyunga)

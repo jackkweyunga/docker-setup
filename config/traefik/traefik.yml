@@ -5,8 +5,8 @@ global:
 # (Optional) Enable API and Dashboard
 # ---
 api:
-  dashboard: true  # true by default
-  insecure: false  # Don't do this in production!
+  dashboard: ${ENABLE_TRAEFIK_DASHBOARD:-false}
+  insecure: ${ENABLE_TRAEFIK_DASHBOARD:-false}
 
 # Entry Points configuration
 # ---
@@ -29,7 +29,7 @@ entryPoints:
 certificatesResolvers:
   staging:
     acme:
-      email: akauntiyamchezo@gmail.com
+      email: ${EMAIL}
       storage: /etc/traefik/certs/acme.json
       caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
       tlsChallenge: {}
@@ -38,7 +38,7 @@ certificatesResolvers:
 
   production:
     acme:
-      email: akauntiyamchezo@gmail.com
+      email: ${EMAIL}
       storage: /etc/traefik/certs/acme.json
       caServer: "https://acme-v02.api.letsencrypt.org/directory"
       tlsChallenge: {}
@@ -47,15 +47,19 @@ certificatesResolvers:
 
   cloudflare:
     acme:
-      email: {{ EMAIL }}
+      email: ${EMAIL}
       storage: /etc/traefik/certs/acme.json
       caServer: "https://acme-v02.api.letsencrypt.org/directory"
       dnsChallenge:
         provider: cloudflare
+        # Cloudflare credentials are provided via environment variables in docker-compose.yml:
+        # - CF_API_EMAIL
+        # - CF_DNS_API_TOKEN
 
 providers:
   docker:
     exposedByDefault: false  # Default is true
+  swarm:
   file:
     # watch for dynamic configuration changes
     directory: /etc/traefik
