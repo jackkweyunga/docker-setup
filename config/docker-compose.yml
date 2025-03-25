@@ -23,6 +23,8 @@ services:
       com.centurylinklabs.watchtower.enable: "false"
     environment:
       - TZ=${TZ:-Africa/Dar_es_Salaam}
+      - CF_API_EMAIL=${CF_API_EMAIL:no-email@no-host}
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN:no-api-token}
 
   # Portainer
   # ---
