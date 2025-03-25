@@ -21,16 +21,16 @@ curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/inst
 
 ```bash
 # Basic setup
-docker-setup
+sudo docker-setup
 
 # Help
-docker-setup --help
+sudo docker-setup --help
 
 # With custom domain
-docker-setup --portainer-domain example.com
+sudo docker-setup --portainer-domain example.com
 
 # With custom email
-docker-setup --email admin@example.com
+sudo docker-setup --email admin@example.com
 ```
 
 ## Configuration
@@ -42,7 +42,7 @@ Configuration files are stored in:
 
 To update to the latest version:
 ```bash
-docker-setup --update
+sudo docker-setup --update
 ```
 
 ## Contributing
