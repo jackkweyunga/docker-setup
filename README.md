@@ -62,7 +62,7 @@ sudo docker-setup
 The interactive setup will ask for:
 - Email address (for SSL certificates)
 - Whether to enable Portainer
-- Portainer domain (if enabled)
+- Portainer domain (if enabled) but you can always access it from `http://{your-ip}:9000`
 - Whether to enable the Traefik dashboard
 - Whether to use DNS challenge for certificates
 
