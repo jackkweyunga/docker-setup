@@ -53,40 +53,6 @@ fi
 echo "Copying documentation..."
 cp README.md LICENSE CONTRIBUTING.md "${DIST_DIR}/${PACKAGE_NAME}/doc/" 2>/dev/null || true
 
-# Create the install script that will help users set up the tool
-cat > "${DIST_DIR}/${PACKAGE_NAME}/install.sh" << 'EOF'
-#!/bin/bash
-# Installation script for Docker Setup Tool
-
-# Default installation locations
-INSTALL_DIR="/usr/local/bin"
-CONFIG_DIR="/etc/docker-setup"
-DOC_DIR="/usr/local/share/docker-setup/doc"
-
-# Create necessary directories
-sudo mkdir -p "$CONFIG_DIR"
-sudo mkdir -p "$DOC_DIR"
-
-# Install the main script
-sudo cp bin/docker-setup "$INSTALL_DIR/"
-sudo chmod +x "$INSTALL_DIR/docker-setup"
-
-# Copy configuration templates
-if [ -d "config" ]; then
-    sudo cp -r config/* "$CONFIG_DIR/"
-fi
-
-# Copy documentation
-if [ -d "doc" ]; then
-    sudo cp -r doc/* "$DOC_DIR/"
-fi
-
-echo "Installation complete! You can now run 'docker-setup' to begin."
-EOF
-
-# Make the install script executable
-chmod +x "${DIST_DIR}/${PACKAGE_NAME}/install.sh"
-
 # Create the distribution package
 echo "Creating distribution package..."
 cd "${DIST_DIR}"
@@ -104,11 +70,6 @@ echo "- Checksum: ${DIST_DIR}/${PACKAGE_NAME}.tar.gz.sha256"
 
 # Provide a helpful message about using the package
 echo "
-To install manually:
-1. Extract the archive: tar -xzf ${PACKAGE_NAME}.tar.gz
-2. Enter the directory: cd ${PACKAGE_NAME}
-3. Run the installer: ./install.sh
-
 To install with curl (after publishing):
-curl -fsSL https://your-domain.com/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jackkweyunga/docker-setup/main/install.sh | bash
 "
