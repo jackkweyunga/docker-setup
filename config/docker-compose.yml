@@ -29,11 +29,11 @@ services:
 
   # Portainer
   # ---
-  # Portainer is a lightweight management UI which allows you to easily manage your Docker host or Swarm cluster.
+  # Portainer is a lightweight management UI that allows you to manage your Docker host or Swarm cluster easily.
   # https://www.portainer.io/
   portainer:
     container_name: portainer
-    image: "docker.io/portainer/portainer-ce:2.21.4"
+    image: "docker.io/portainer/portainer-ce:2.32.0"
     ports:
       - "${PORTAINER_PORT:-9000}:9000"
     volumes:
@@ -57,7 +57,7 @@ services:
 
   # Watchtower
   # ---
-  # Watchtower is a process for automating Docker container base image updates.
+  # Watchtower is a process for automating Docker container-based image updates.
   # https://containrrr.dev/watchtower/
   watchtower:
     container_name: "watchtower"
